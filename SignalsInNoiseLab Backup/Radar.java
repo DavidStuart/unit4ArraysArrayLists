@@ -12,7 +12,7 @@ public class Radar
     private boolean[][] currentScan;
     
     //Stores the last scan to check the change in positions
-    private boolean[][][] scanHistory;
+    private boolean[][] previousScan;
     // value of each cell is incremented for each scan in which that cell triggers detection 
     private int[][] accumulator;
     
@@ -30,40 +30,21 @@ public class Radar
     private int dx;
     private int dy;
     
-    //Final Monster Velocity Variables
-    private int monsterX;
-    private int monsterY;
-    
-    //keep track of what frame is currently running
     private int turnNumber = 0;
-    
-    //Tracks if the velocity has been output yet
-    private boolean outputReported = false;
-    
-    //2D array used to check against current frame for possible monsters
-    private boolean [][] isPossibleMonster;
-    
     /**
      * Constructor for objects of class Radar
      * 
      * @param   rows    the number of rows in the radar grid
      * @param   cols    the number of columns in the radar grid
-     * @param   deltax  the change in x position of the monster(input by user)
-     * @param   deltay  the change in y position of the monster(input by user)
      */
     public Radar(int rows, int cols,int deltax, int deltay)
     {
         // initialize instance variables
         currentScan = new boolean[rows][cols]; // elements will be set to false
         accumulator = new int[rows][cols]; // elements will be set to 0
-        scanHistory = new boolean[100][rows][cols];
-        isPossibleMonster = new boolean[11][11];
+        previousScan = new boolean[rows][cols];
         dx = deltax;
         dy = deltay;
-        
-        //Final Velocity to be output
-        monsterX = -100;
-        monsterY = -100;
         // randomly set the location of the monster (can be explicity set through the
         //  setMonsterLocation method
         
@@ -74,26 +55,21 @@ public class Radar
     /**
      * Performs a scan of the radar. Noise is injected into the grid and the accumulator is updated.
      * 
-     * @for loop   accumulator   goes through the grid checking each cell then comparing the changes around that cell to
-     *                                  previous scans to find patterns and detect the monster.
-     * 
-     * 
-     * 
-     * 
-     * 
      */
     public void scan()
     {
+        turnNumber ++;
         // zero the current scan grid
+        //previousScan = currentScan;
         for(int row = 0; row < currentScan.length; row++)
         {
             for(int col = 0; col < currentScan[0].length; col++)
             {
+                previousScan[row][col] = currentScan[row][col];
                 currentScan[row][col] = false;
             }
         }
         
-
         updateMonsterLocation(dx,dy);
         // detect the monster
         currentScan[monsterLocationRow][monsterLocationCol] = true;
@@ -101,102 +77,51 @@ public class Radar
         // inject noise into the grid
         injectNoise();
         
-        
+        int ldx = 1;
+        int ldy = 1;
         int checkX = 0;
         int checkY = 0;
-        
-        //local change in x and y used to check changes around the cell currently being checked
-        int ldx = 0;
-        int ldy = 0;
-        
-        
-        int numMonsters = 0;
-        boolean setAsMonster = false;
-        
-        // add the current scan to the history
-        for(int row = 0; row < currentScan.length; row++)
-        {
-            for(int col = 0; col < currentScan[0].length; col++)
-            {
-                scanHistory[turnNumber][row][col] = currentScan[row][col];
-            }
-        }
         
         // udpate the accumulator
         for(int row = 0; row < currentScan.length; row++)
         {
-            for(int col = 0; col < currentScan[0].length; col++)
-            {
-                // set the isPossibleMonster array to true values
-                for(ldx = 0; ldx < 11; ldx++)
-                {
-                    for(ldy = 0; ldy < 11; ldy++)
-                    {
-                        isPossibleMonster[ldx][ldy]=true;
-                    }
-                }
-                for(int i = 0; i <= turnNumber; i++)
-                {
-                    for(ldx = 0; ldx < 11; ldx++)
-                    {
-                        for(ldy = 0; ldy < 11; ldy++)
+           for(int col = 0; col < currentScan[0].length; col++)
+           {
+               for(ldx = -5; ldx < 6; ldx++)
+               {
+                   for(ldy = -5; ldy < 6; ldy++)
+                   {         
+                       if(row + ldx <= 99 && row + ldx >= 0)
                         {
-                            if(row - (turnNumber-i)*(ldx-5) <= 99 && row - (turnNumber-i)*(ldx-5) >= 0)
-                            {
-                                checkX = row - (turnNumber-i)*(ldx-5);
-                            }
-                            else
-                            {
-                                checkX = row;
-                            }
-                            if(col - (turnNumber-i)*(ldy-5) <= 99 && col - (turnNumber-i)*(ldy-5) >= 0)
-                            {
-                                checkY = col - (turnNumber-i)*(ldy-5);
-                            }
-                             else
-                            {
-                                checkY = col;
-                            }
-                            if(scanHistory[i][checkX][checkY] == false)
-                            {
-                                isPossibleMonster[ldx][ldy] = false;
-                            }
-                         }
-                    }
-                }
-                setAsMonster = false;
-                for(ldx = 0; ldx < 11; ldx++)
-                {
-                    for(ldy = 0; ldy < 11; ldy++)
-                    {
-                        if(isPossibleMonster[ldx][ldy] == true)
-                        {
-                            setAsMonster = true;
-                            monsterX = ldx - 5;
-                            monsterY = ldy - 5;
+                            checkX = row + ldx;
                         }
+                        else
+                        {
+                            checkX = row;
+                        }
+                       if(col + ldy <= 99 && col + ldy >= 0)
+                       {
+                           checkY = col + ldy;
+                       }
+                       else
+                       {
+                          checkY = col;
+                       }
+                       if(currentScan[checkX][checkY] == true && currentScan[checkX][checkY] == previousScan[row][col])
+                       {
+                           accumulator[checkX][checkY] = accumulator[row][col]+1;
+                           //accumulator[row-1][col-1] = 0;
+                       }
+                       else
+                       {
+                           //accumulator[row][col] = 0;
+                       }
                     }
-                }
-                if(setAsMonster == true)
-                {
-                    accumulator[row][col] = turnNumber+1;
-                    numMonsters++;
-                }
-                else
-                {
-                    accumulator[row][col] = 0;
                 }
             }
         }
-        
-        if(numMonsters == 1 && turnNumber > 0 && outputReported == false) {
-            System.out.println("Monster found in turn: " + turnNumber + " Monster Movement: " + monsterX + ", " + monsterY);
-            outputReported = true;
-        }
-        
         // keep track of the total number of scans
         numScans++;
-        turnNumber++;
     }
 
     /**
@@ -215,12 +140,6 @@ public class Radar
         // update the radar grid to show that something was detected at the specified location
         currentScan[row][col] = true;
     }
-    /**
-     * Upadates the monster's location on the grid(called in scan method)
-     * 
-     * @param   dx   the user input change in x each scan
-     * @param   dy   the user input change in y each scan
-     */
     public void updateMonsterLocation(int dx, int dy)
     {
         if(monsterLocationRow+ dx <= 99 && monsterLocationRow + dx >= 0)
